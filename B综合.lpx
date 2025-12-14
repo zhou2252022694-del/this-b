@@ -1,0 +1,103 @@
+#!name=📺 Bilibili 综合增强与去广告（合并版）
+#!desc=合并了 UI 自定义和去广告功能。UI 参数已硬编码，请根据注释自行修改。
+#!author=Merged_by_AI
+#!tag=Bilibili, Enhanced, AdBlock
+
+[MITM]
+# 合并了两个文件所需的所有域名
+hostname = app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.bilibili.com, api.live.bilibili.com, line3-h5-mobile-api.biligame.com
+
+[Rule]
+# 来自 bilibili.lpx 的 REJECT 规则
+DOMAIN,bsbsb.top,PROXY
+DOMAIN,api.biliapi.com,REJECT
+DOMAIN,app.biliapi.com,REJECT
+DOMAIN,api.biliapi.net,REJECT
+DOMAIN,app.biliapi.net,REJECT
+DOMAIN,line3-h5-mobile-api.biligame.com,REJECT
+DOMAIN-SUFFIX,chat.bilibili.com,REJECT
+AND,((DOMAIN-SUFFIX,chat.bilibili.com),(OR,((DOMAIN-KEYWORD,stun),(DOMAIN-KEYWORD,tracker)))),REJECT
+
+[Script]
+# ====================================================================
+# A. UI 自定义脚本 (来自 BiliBili.Enhanced.plugin)
+# 参数已硬编码如下：
+# 1.Home.Tab: "直播tab,推荐tab,bangumi,anime"
+# 2.Home.Tab_default: "推荐tab"
+# 3.Home.Top_left: "videoshortcut"
+# 4.Home.Top: "消息Top"
+# 5.Bottom: "home,dynamic,ogv,我的Bottom"
+# 6.LogLevel: "WARN"
+# ====================================================================
+
+# 首页 Tab 配置
+http-response ^https?:\/\/app\.bili(bili\.com|api\.net)\/x\/resource\/show\/tab\/v2\? requires-body=1, script-path=https://github.com/BiliUniverse/Enhanced/releases/download/v0.5.10/response.bundle.js, tag=📺 Enhanced.UI.Tab, argument=[直播tab,推荐tab,bangumi,anime,推荐tab,videoshortcut,消息Top,home,dynamic,ogv,我的Bottom,WARN]
+
+# 我的页面配置
+http-response ^https?:\/\/app\.bili(bili\.com|api\.net)\/x\/v2\/account\/mine(\/ipad)?\? requires-body=1, script-path=https://github.com/BiliUniverse/Enhanced/releases/download/v0.5.10/response.bundle.js, tag=📺 Enhanced.UI.Mine, argument=[直播tab,推荐tab,bangumi,anime,推荐tab,videoshortcut,消息Top,home,dynamic,ogv,我的Bottom,WARN]
+
+# 频道页面配置
+http-response ^https?:\/\/app\.bili(bili\.com|api\.net)\/x\/v2\/region\/index\? requires-body=1, script-path=https://github.com/BiliUniverse/Enhanced/releases/download/v0.5.10/response.bundle.js, tag=📺 Enhanced.UI.Region, argument=[直播tab,推荐tab,bangumi,anime,推荐tab,videoshortcut,消息Top,home,dynamic,ogv,我的Bottom,WARN]
+
+http-response ^https?:\/\/app\.bili(bili\.com|api\.net)\/x\/v2\/channel\/region\/list\? requires-body=1, script-path=https://github.com/BiliUniverse/Enhanced/releases/download/v0.5.10/response.bundle.js, tag=📺 Enhanced.UI.RegionList, argument=[直播tab,推荐tab,bangumi,anime,推荐tab,videoshortcut,消息Top,home,dynamic,ogv,我的Bottom,WARN]
+
+
+# ====================================================================
+# B. 去广告及优化脚本 (来自 bilibili.lpx)
+# 参数已硬编码如下：
+# showUpList: "show" (始终显示动态最常访问)
+# purifyTopReplies: "true" (移除评论区置顶广告)
+# airborne: "true" (启用空降助手)
+# logLevel: "warn"
+# ====================================================================
+
+# 空降助手请求脚本
+http-request ^https:\/\/(grpc\.biliapi\.net|app\.bilibili\.com)\/bilibili\.community\.service\.dm\.v1\.DM\/DmSegMobile$ script-path=https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_proto_request_kokoryh.js, requires-body=true, binary-body-mode=true, tag=空降助手, enable=true, argument="warn"
+
+# ProtoBuf处理响应脚本
+http-response ^https:\/\/(grpc\.biliapi\.net|app\.bilibili\.com)\/bilibili\.(app\.(show\.v1\.Popular\/Index|dynamic\.v2\.Dynamic\/DynAll|view(unite)?\.v1\.View\/(View|ViewProgress|RelatesFeed)|playurl\.v1\.PlayURL\/PlayView|playerunite\.v1\.Player\/PlayViewUnite)|polymer\.app\.search\.v1\.Search\/SearchAll|community\.service\.dm\.v1\.DM\/DmView|main\.community\.reply\.v1\.Reply\/MainList|pgc\.gateway\.player\.v2\.PlayURL\/PlayView)$ script-path=https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_proto_response_kokoryh.js, requires-body=true, binary-body-mode=true, tag=ProtoBuf处理, argument="[show, true, true, warn]"
+
+[Rewrite]
+# ====================================================================
+# C. 静态重写/Mock规则 (来自 bilibili.lpx)
+# ====================================================================
+
+# 阻止热门活动/搜索热词/VIP广告/青少年模式弹窗等
+com\/x\/(resource\/(top\/activity|patch\/tab)|v2\/search\/square|vip\/ads\/materials)\? mock-response-body data-type=text data="{"code":-404,"message":"-404","ttl":1,"data":null}" status-code=200
+^https:\/\/grpc\.biliapi\.net\/bilibili\.app\.interface\.v1\.Teenagers\/ModeStatus$ mock-response-body data-type=base64 data="AAAAABMKEQgCEgl0ZWVuYWdlcnMgAioA" mock-data-is-base64=true
+^https:\/\/grpc\.biliapi\.net\/bilibili\.app\.interface\.v1\.Search\/DefaultWords$ mock-response-body data-type=base64 data="AAAAACkaHeaQnOe0ouinhumikeOAgeeVquWJp+aIlnVw5Li7IgAoAToAQgBKAA==" mock-data-is-base64=true
+^https:\/\/grpc\.biliapi\.net\/bilibili\.app\.(view\.v1\.View\/TFInfo|viewunite\.v1\.View\/ViewEndPage)$ mock-response-body data-type=base64 data="AAAAAAA=" mock-data-is-base64=true
+
+# 移除链接跟踪参数
+^https:\/\/api\.bilibili\.com\/x\/pd-proxy\/tracker\? response-body-json-jq '.data[][]?="stun.chat.bilibili.com:3478"'
+
+# 移除开屏广告
+^https:\/\/app\.bilibili\.com\/x\/v2\/splash\/(list|show|event\/list2)\? response-body-json-jq '.data |= with_entries(if .key | IN("show", "event_list") then .value = [] else . end)'
+
+# 移除 Tab 页面广告
+^https:\/\/app\.bilibili\.com\/x\/resource\/show\/tab\/v2\? response-body-json-jq jq-path="https://kelee.one/Resource/JQLang/Bilibili/tab_Bilibili_remove_ads.jq"
+
+# 移除推荐信息流广告
+^https:\/\/app\.bilibili\.com\/x\/v2\/feed\/index\? response-body-json-jq 'if .data.items then .data.items |= map(select((.banner_item == null) and (.ad_info == null) and (.card_goto == "av") and (.card_type | IN("small_cover_v2", "large_cover_single_v9", "large_cover_v1")))) end'
+
+# 移除番剧付费信息
+^https:\/\/api\.bilibili\.com\/pgc\/view\/v2\/app\/season\? response-body-json-jq 'del(.data.payment)'
+
+# 移除竖屏信息流广告
+^https:\/\/app\.bilibili\.com\/x\/v2\/feed\/index\/story\? response-body-json-jq 'if .data.items then .data.items |= map(select((.ad_info == null) and (.card_goto | IN("vertical_ad_av", "vertical_ad_live", "vertical_ad_picture") | not)) | del(.story_cart_icon, .free_flow_toast, .image_infos, .course_info, .game_info)) end'
+
+# 移除直播间广告/活动/电商信息
+^https:\/\/api\.live\.bilibili\.com\/xlive\/(app-interface\/v2\/index\/feed|app-room\/v1\/index\/getInfoBy(Room|User))\? response-body-json-jq '.data |= (del(.play_together_info, .play_together_info_v2, .activity_banner_info) | if .function_card then .function_card[] = null end | if .new_tab_info.outer_list then .new_tab_info.outer_list |= map(select(.biz_id != 33)) end | if .card_list then .card_list |= map(select(.card_type | IN("banner_v2", "activity_card_v1") | not)) end | reduce ([["show_reserve_status"], false], [["reserve_info", "show_reserve_status"], false], [["shopping_info", "is_show"], 0]) as [$path, $value] (.; if getpath($path) then setpath($path; $value) end))'
+
+# 我的页面功能移除
+^https:\/\/app\.bilibili\.com\/x\/v2\/account\/mine(\/ipad)?\? response-body-json-jq jq-path="https://raw.githubusercontent.com/sooyaaabo/Loon/main/JQLang/Bilibili/Bilibili.mine.jq"
+
+# 永久大会员伪装 (仅修改显示状态，不提供实际会员权益)
+^https:\/\/app\.bilibili\.com\/x\/v2\/account\/myinfo\? response-body-json-jq '.data.vip |= if . != null and .status == 0 then . + { status: 1, type: 2, due_date: 9005270400000, role: 15 } else . end'
+
+# 阻止游戏直播大卡和电商信息
+^https:\/\/line3-h5-mobile-api\.biligame\.com\/game\/live\/large_card_material\? - reject-dict
+^https:\/\/api\.live\.bilibili\.com\/xlive\/e-commerce-interface\/v1\/ecommerce-user\/get_shopping_info\? - reject-dict
+
+# 领取活动弹窗模拟成功
+^https:\/\/api\.bilibili\.com\/pgc\/activity\/deliver\/material\/receive\? mock-response-body data-type=text data="{"code":0,"data":{"closeType":"close_win","container":[],"showTime":""},"message":"success"}" status-code=200
