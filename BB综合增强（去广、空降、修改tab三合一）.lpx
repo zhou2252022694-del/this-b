@@ -2,6 +2,7 @@
 #!desc=修正 Tab 栏冲突，确保 UI 自定义功能优先执行。
 #!author=Merged_by_AI
 #!tag=Bilibili, Final, Fix
+#!icon=https://raw.githubusercontent.com/fmz200/wool_box/main/icon/bili.png
 
 [MITM]
 hostname = app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.bilibili.com, api.live.bilibili.com, line3-h5-mobile-api.biligame.com
