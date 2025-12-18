@@ -1,38 +1,37 @@
-name: Bilibili 首页净化 (急速优化版)
-desc: "优化加载速度，通过更精准的拦截和轻量化脚本减少延迟。"
+name: Bilibili 首页净化 (终极速度版)
+desc: "极致优化加载速度，通过并行处理和精简解密链实现秒开。"
 category: Rewrite
 
 mitm:
   hostnames:
     - app.bilibili.com
-    - config.bilibili.com
+    # 移除了 config 域名，减少不必要的解密开销
 
 rewrites:
-  # 1. 拦截首页不必要的增量加载，减少数据吞吐量，提升加载速度
+  # 1. 静态拒绝掉所有已知的广告和非核心接口（不经过脚本，0延迟）
   - match: ^https:\/\/app\.bilibili\.com\/x\/v2\/feed\/index\/add
     type: reject
-  # 2. 屏蔽开屏广告、皮肤更新、配置下发（这些是导致启动慢的主因）
+  - match: ^https:\/\/app\.bilibili\.com\/x\/v2\/feed\/index\/ad
+    type: reject
   - match: ^https:\/\/app\.bilibili\.com\/x\/v2\/splash
     type: reject
-  - match: ^https:\/\/config\.bilibili\.com\/x\/v2\/config\/show
-    type: reject
-  # 3. 屏蔽各种红点和右上角推广入口
-  - match: ^https:\/\/app\.bilibili\.com\/x\/v2\/feed\/index\/ad
+  # 拦截这个接口能显著加快启动速度
+  - match: ^https:\/\/app\.bilibili\.com\/x\/v2\/check\/manager
     type: reject
 
 scripts:
-  # 核心去直播：将匹配范围缩小到具体的首页请求，并缩短超时时间
-  - name: Bili_Home_Clean
+  # 2. 首页去直播：仅在首页刷新时运行，且限制最大处理时长
+  - name: Bili_Home_Fast
     type: http-response
     match: ^https:\/\/app\.bilibili\.com\/x\/v2\/feed\/index\?
     script_url: https://raw.githubusercontent.com/ddgksf2013/Scripts/master/bilibili_diy.js
     requires_body: true
-    timeout: 3  # 超过3秒不处理直接放行，保证不转圈
+    timeout: 2  # 极限压低到2秒，确保即使脚本卡顿，首页也能迅速显示
 
-  # 空降助手
+  # 3. 空降助手：针对性匹配视频详情页
   - name: Bili_AirDrop
     type: http-response
     match: ^https:\/\/app\.bilibili\.com\/x\/v2\/view\?
     script_url: https://raw.githubusercontent.com/ddgksf2013/Scripts/master/bilibili_diy.js
     requires_body: true
-    timeout: 3
+    timeout: 2
